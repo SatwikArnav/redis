@@ -39,6 +39,10 @@ func Read(reader *bufio.Reader) (Data, error) {
 		data:    nil,
 	}
 	switch typ {
+	case '+':
+		ReadString(reader, &Data)
+	case '-':
+		ReadError(reader, &Data)
 	case '$':
 		ReadBulk(reader, &Data)
 	case '*':
@@ -47,6 +51,25 @@ func Read(reader *bufio.Reader) (Data, error) {
 		ReadInteger(reader, &Data)
 	}
 	return Data, nil
+}
+func ReadString(reader *bufio.Reader, data *Data) error {
+	line, err := reader.ReadBytes('\n')
+	if err != nil {
+		return err
+	}
+	data.length = len(line) - 2 // Exclude CRLF
+	data.data = strings.TrimSpace(string(line))
+	return nil
+}
+
+func ReadError(reader *bufio.Reader, data *Data) error {
+	line, err := reader.ReadBytes('\n')
+	if err != nil {
+		return err
+	}
+	data.length = len(line) - 2 // Exclude CRLF
+	data.data = strings.TrimSpace(string(line))
+	return nil
 }
 
 func ReadBulk(reader *bufio.Reader, data *Data) error {

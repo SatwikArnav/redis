@@ -10,6 +10,11 @@ func marshall(sata Data) string {
 	DType := sata.cmdType
 	//fmt.Println(DType)
 	switch DType {
+	case "+":
+		return fmt.Sprintf("+%s\r\n", sata.data)
+	case "-":
+		return fmt.Sprintf("-%s\r\n", sata.data)
+
 	case "$":
 		return fmt.Sprintf("$%d\r\n%s\r\n", sata.length, sata.data)
 	case "*":
