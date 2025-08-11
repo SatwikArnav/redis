@@ -6,7 +6,6 @@ import (
 	"log"
 	"net"
 	"strings"
-	
 )
 
 func TcpListener() {
@@ -30,7 +29,7 @@ func HandleClient(client net.Conn) {
 	fmt.Println("Client connected:", client.RemoteAddr())
 
 	reader := bufio.NewReader(client)
-	
+
 	// Keep connection alive and process multiple commands
 	for {
 		data, err := Read(reader)
@@ -87,7 +86,8 @@ func HandleClient(client net.Conn) {
 		fn, ok := Handler[cmdStr]
 		if !ok {
 			log.Println("Unknown command:", cmdStr)
-			return
+			client.Write([]byte("-ERR unknown command '" + cmdStr + "'\r\n"))
+			continue
 		}
 		result := fn(args)
 
