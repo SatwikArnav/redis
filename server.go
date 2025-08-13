@@ -25,7 +25,7 @@ func TcpListener() {
 }
 
 func HandleClient(client net.Conn) {
-	//defer client.Close()
+	defer client.Close() // Uncomment this to properly close connections
 	fmt.Println("Client connected:", client.RemoteAddr())
 
 	reader := bufio.NewReader(client)
@@ -34,14 +34,19 @@ func HandleClient(client net.Conn) {
 	for {
 		data, err := Read(reader)
 		if err != nil {
-			log.Println("Error reading data:", err)
+			if err.Error() == "EOF" {
+				fmt.Println("Client disconnected:", client.RemoteAddr())
+			} else {
+				log.Println("Error reading data:", err)
+			}
 			return
 		}
 
 		fmt.Printf("Received data: %+v\n", data)
 		if data.cmdType != "*" {
 			log.Println("NOT ARRAY")
-			return
+			client.Write([]byte("-ERR invalid command format\r\n"))
+			continue
 		}
 		fmt.Println("data.data", data.data)
 		fmt.Printf("data.data type: %T\n", data.data)
@@ -54,19 +59,22 @@ func HandleClient(client net.Conn) {
 				d, ok := item.(Data)
 				if !ok {
 					log.Println("item is not of type Data")
-					return
+					client.Write([]byte("-ERR invalid data format\r\n"))
+					continue
 				}
 				dataSlice = append(dataSlice, d)
 			}
 		default:
 			log.Printf("data.data is not a []Data or []interface{}, but %T\n", data.data)
-			return
+			client.Write([]byte("-ERR invalid data format\r\n"))
+			continue
 		}
 		fmt.Printf("dataSlice: %+v\n", dataSlice)
 		fmt.Printf("dataSlice type: %T\n", dataSlice)
 		if len(dataSlice) == 0 || data.length == 0 {
 			log.Printf("dataSlice is empty or data.length is 0. dataSlice: %+v\n", dataSlice)
-			return
+			client.Write([]byte("-ERR empty command\r\n"))
+			continue
 		}
 		command := dataSlice[0]
 		args := dataSlice[1:]
@@ -80,7 +88,8 @@ func HandleClient(client net.Conn) {
 			cmdStr = string(v)
 		default:
 			log.Printf("command.data is not a string or []byte, but %T\n", command.data)
-			return
+			client.Write([]byte("-ERR invalid command format\r\n"))
+			continue
 		}
 		cmdStr = strings.ToUpper(cmdStr)
 		fn, ok := Handler[cmdStr]

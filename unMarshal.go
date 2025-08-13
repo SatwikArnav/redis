@@ -3,9 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"log"
-
-	//"bytes"
 	"io"
 	"strconv"
 	"strings"
@@ -31,26 +28,29 @@ func readLength(reader *bufio.Reader) (int, error) {
 func Read(reader *bufio.Reader) (Data, error) {
 	typ, err := reader.ReadByte()
 	if err != nil {
-		log.Fatal(err)
+		return Data{}, err // Return error instead of calling log.Fatal
 	}
-	Data := Data{
+	data := Data{
 		cmdType: string(typ),
 		length:  0,
 		data:    nil,
 	}
 	switch typ {
 	case '+':
-		ReadString(reader, &Data)
+		err = ReadString(reader, &data)
 	case '-':
-		ReadError(reader, &Data)
+		err = ReadError(reader, &data)
 	case '$':
-		ReadBulk(reader, &Data)
+		err = ReadBulk(reader, &data)
 	case '*':
-		ReadArray(reader, &Data)
+		err = ReadArray(reader, &data)
 	case ':':
-		ReadInteger(reader, &Data)
+		err = ReadInteger(reader, &data)
 	}
-	return Data, nil
+	if err != nil {
+		return Data{}, err
+	}
+	return data, nil
 }
 func ReadString(reader *bufio.Reader, data *Data) error {
 	line, err := reader.ReadBytes('\n')
