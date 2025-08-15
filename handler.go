@@ -4,12 +4,14 @@ import (
 	"fmt"
 	
 	"github.com/SatwikArnav/redis/store"
+
+	"github.com/SatwikArnav/redis/RESP"
 )
 
-var Handler map[string]func([]Data) Data
+var Handler map[string]func([]RESP.Data) RESP.Data
 
 func init() {
-	Handler = make(map[string]func([]Data) Data)
+	Handler = make(map[string]func([]RESP.Data) RESP.Data)
 	Handler["PING"] = PING
 	Handler["COMMAND"] = COMMAND
 	Handler["SET"] = SET
@@ -18,122 +20,122 @@ func init() {
 	Handler["HGET"] = HGET
 }
 
-func PING(D []Data) Data {
+func PING(D []RESP.Data) RESP.Data {
 	if len(D) == 0 {
-		return Data{
-			cmdType: "+",
-			length:  4,
-			data:    "PONG"}
+		return RESP.Data{
+			CmdType: "+",
+			Length:  4,
+			Data:    "PONG"}
 	}
 
-	switch v := D[0].data.(type) {
+	switch v := D[0].Data.(type) {
 	case string:
-		return Data{
-			cmdType: "+",
-			length:  len(v) + 2,
-			data:    v,
+		return RESP.Data{
+			CmdType: "+",
+			Length:  len(v) + 2,
+			Data:    v,
 		}
 	case []byte:
-		return Data{
-			cmdType: "+",
-			length:  len(v) + 2,
-			data:    string(v),
+		return RESP.Data{
+			CmdType: "+",
+			Length:  len(v) + 2,
+			Data:    string(v),
 		}
 	case nil:
-		return Data{
-			cmdType: "+",
-			length:  5,
-			data:    "PONG",
+		return RESP.Data{
+			CmdType: "+",
+			Length:  5,
+			Data:    "PONG",
 		}
 
 	default:
-		return Data{
-			cmdType: "-",
-			length:  0,
-			data:    "ERR wrong number of arguments for 'ping' command",
+		return RESP.Data{
+			CmdType: "-",
+			Length:  0,
+			Data:    "ERR wrong number of arguments for 'ping' command",
 		}
 	}
 }
 
-func COMMAND(D []Data) Data {
+func COMMAND(D []RESP.Data) RESP.Data {
 	// Return a simple OK response for now
 	// In a full Redis implementation, this would return command documentation
-	return Data{
-		cmdType: "+",
-		length:  2,
-		data:    "OK",
+	return RESP.Data{
+		CmdType: "+",
+		Length:  2,
+		Data:    "OK",
 	}
 }
 
-func SET(D []Data) Data {
+func SET(D []RESP.Data) RESP.Data {
 	if len(D) != 2 {
-		return Data{
-			cmdType: "-",
-			length:  0,
-			data:    "ERR wrong number of arguments for 'set' command",
+		return RESP.Data{
+			CmdType: "-",
+			Length:  0,
+			Data:    "ERR wrong number of arguments for 'set' command",
 		}
 	}
 	
 	// Convert key to string, handling both string and []byte types
 	var key string
-	switch v := D[0].data.(type) {
+	switch v := D[0].Data.(type) {
 	case string:
 		key = v
 	case []byte:
 		key = string(v)
 	default:
-		return Data{
-			cmdType: "-",
-			length:  0,
-			data:    "ERR invalid key type",
+		return RESP.Data{
+			CmdType: "-",
+			Length:  0,
+			Data:    "ERR invalid key type",
 		}
 	}
 	
 	// Convert value to string, handling both string and []byte types
 	var value string
-	switch v := D[1].data.(type) {
+	switch v := D[1].Data.(type) {
 	case string:
 		value = v
 	case []byte:
 		value = string(v)
 	default:
-		return Data{
-			cmdType: "-",
-			length:  0,
-			data:    "ERR invalid value type",
+		return RESP.Data{
+			CmdType: "-",
+			Length:  0,
+			Data:    "ERR invalid value type",
 		}
 	}
 	
 	store.Set[key] = value
 	fmt.Printf("Set key: %s, value: %s\n", key, value)
 	fmt.Printf("Current store: %+v\n", store.Set)		
-	return Data{
-		cmdType: "+",
-		length:  2,
-		data:    "OK",
+	return RESP.Data{
+		CmdType: "+",
+		Length:  2,
+		Data:    "OK",
 	}
 }
 
-func GET(D []Data) Data {
+func GET(D []RESP.Data) RESP.Data {
 	if len(D) != 1 {
-		return Data{
-			cmdType: "-",
-			length:  0,
-			data:    "ERR wrong number of arguments for 'get' command",
+		return RESP.Data{
+			CmdType: "-",
+			Length:  0,
+			Data:    "ERR wrong number of arguments for 'get' command",
 		}
 	}
 
 	var key string
-	switch v := D[0].data.(type) {
+	switch v := D[0].Data.(type) {
 	case string:
 		key = v
 	case []byte:
 		key = string(v)
 	default:
-		return Data{	
-			cmdType: "-",
-			length:  0,
-			data:    "ERR invalid key type",
+		return RESP.Data{	
+			CmdType: "-",
+			Length:  0,
+			Data:    "ERR invalid key type",
 		}
 	}
 	
@@ -141,66 +143,66 @@ func GET(D []Data) Data {
 	fmt.Printf("Current store: %+v\n", store.Set)
 	value, exists := store.Set[key]
 	if !exists {
-		return Data{
-			cmdType: "-",
-			length:  0,
-			data:    "ERR key not found",
+		return RESP.Data{
+			CmdType: "-",
+			Length:  0,
+			Data:    "ERR key not found",
 		}
 	}
 
-	return Data{
-		cmdType: "+",
-		length:  len(value) + 2,
-		data:    value,
+	return RESP.Data{
+		CmdType: "+",
+		Length:  len(value) + 2,
+		Data:    value,
 	}
 }
 
-func HSET(D []Data) Data {
+func HSET(D []RESP.Data) RESP.Data {
 	if len(D) != 3 {
-		return Data{
-			cmdType: "-",
-			length:  0,
-			data:    "ERR wrong number of arguments for 'hset' command",
+		return RESP.Data{
+			CmdType: "-",
+			Length:  0,
+			Data:    "ERR wrong number of arguments for 'hset' command",
 		}
 	}
 	var Pkey string
-	switch v := D[0].data.(type) {
+	switch v := D[0].Data.(type) {
 	case string:
 		Pkey = v	
 	case []byte:
 		Pkey = string(v)	
 	default:
-		return Data{	
-			cmdType: "-",
-			length:  0,
-			data:    "ERR invalid key type",
+		return RESP.Data{	
+			CmdType: "-",
+			Length:  0,
+			Data:    "ERR invalid key type",
 
 		}
 	}
 	var field string
-	switch v := D[1].data.(type) {
+	switch v := D[1].Data.(type) {
 	case string:
 		field = v
 	case []byte:
 		field = string(v)
 	default:
-		return Data{
-			cmdType: "-",
-			length:  0,
-			data:    "ERR invalid field type",
+		return RESP.Data{
+			CmdType: "-",
+			Length:  0,
+			Data:    "ERR invalid field type",
 		}
 	}
 	var value string
-	switch v := D[2].data.(type) {
+	switch v := D[2].Data.(type) {
 	case string:
 		value = v
 	case []byte:
 		value = string(v)
 	default:
-		return Data{
-			cmdType: "-",
-			length:  0,
-			data:    "ERR invalid value type",
+		return RESP.Data{
+			CmdType: "-",
+			Length:  0,
+			Data:    "ERR invalid value type",
 		}
 	}
 	
@@ -210,45 +212,45 @@ func HSET(D []Data) Data {
 	store.Hset[Pkey][field] = value
 	fmt.Printf("HSET key: %s, field: %s, value: %s\n", Pkey, field, value)
 	fmt.Printf("Current HSet store: %+v\n", store.Hset)
-	return Data{
-		cmdType: "+",	
-		length:  2,
-		data:    "OK",
+	return RESP.Data{
+		CmdType: "+",	
+		Length:  2,
+		Data:    "OK",
 	}
 }
 
-func HGET(D []Data) Data {
+func HGET(D []RESP.Data) RESP.Data {
 	if len(D) != 2 {
-		return Data{
-			cmdType: "-",
-			length:  0,
-			data:    "ERR wrong number of arguments for 'hget' command",
+		return RESP.Data{
+			CmdType: "-",
+			Length:  0,
+			Data:    "ERR wrong number of arguments for 'hget' command",
 		}
 	}
 	var Pkey string
-	switch v := D[0].data.(type) {
+	switch v := D[0].Data.(type) {
 	case string:
 		Pkey = v	
 	case []byte:
 		Pkey = string(v)	
 	default:
-		return Data{	
-			cmdType: "-",
-			length:  0,
-			data:    "ERR invalid key type",
+		return RESP.Data{	
+			CmdType: "-",
+			Length:  0,
+			Data:    "ERR invalid key type",
 		}
 	}
 	var field string
-	switch v := D[1].data.(type) {
+	switch v := D[1].Data.(type) {
 	case string:
 		field = v
 	case []byte:
 		field = string(v)
 	default:
-		return Data{
-			cmdType: "-",
-			length:  0,
-			data:    "ERR invalid field type",
+		return RESP.Data{
+			CmdType: "-",
+			Length:  0,
+			Data:    "ERR invalid field type",
 		}
 	}
 
@@ -256,26 +258,26 @@ func HGET(D []Data) Data {
 	fmt.Printf("Current HSet store: %+v\n", store.Hset)
 	fields, exists := store.Hset[Pkey]
 	if !exists {
-		return Data{
-			cmdType: "-",
-			length:  0,
-			data:    "ERR key not found",
+		return RESP.Data{
+			CmdType: "-",
+			Length:  0,
+			Data:    "ERR key not found",
 		}
 	}
 
 	value, exists := fields[field]
 	if !exists {
-		return Data{
-			cmdType: "-",
-			length:  0,
-			data:    "ERR field not found",
+		return RESP.Data{
+			CmdType: "-",
+			Length:  0,
+			Data:    "ERR field not found",
 		}
 	}
 
-	return Data{
-		cmdType: "+",
-		length:  len(value) + 2,
-		data:    value,
+	return RESP.Data{
+		CmdType: "+",
+		Length:  len(value) + 2,
+		Data:    value,
 	}
 }
 

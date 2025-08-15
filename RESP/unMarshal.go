@@ -1,4 +1,4 @@
-package main
+package RESP
 
 import (
 	"bufio"
@@ -9,12 +9,12 @@ import (
 )
 
 type Data struct {
-	cmdType string
-	length  int
-	data    any
+	CmdType string
+	Length  int
+	Data    any
 }
 
-func readLength(reader *bufio.Reader) (int, error) {
+func ReadLength(reader *bufio.Reader) (int, error) {
 	line, err := reader.ReadBytes('\n')
 	if err != nil {
 		return 0, err
@@ -31,9 +31,9 @@ func Read(reader *bufio.Reader) (Data, error) {
 		return Data{}, err // Return error instead of calling log.Fatal
 	}
 	data := Data{
-		cmdType: string(typ),
-		length:  0,
-		data:    nil,
+		CmdType: string(typ),
+		Length:  0,
+		Data:    nil,
 	}
 	switch typ {
 	case '+':
@@ -57,8 +57,8 @@ func ReadString(reader *bufio.Reader, data *Data) error {
 	if err != nil {
 		return err
 	}
-	data.length = len(line) - 2 // Exclude CRLF
-	data.data = strings.TrimSpace(string(line))
+	data.Length = len(line) - 2 // Exclude CRLF
+	data.Data = strings.TrimSpace(string(line))
 	return nil
 }
 
@@ -67,23 +67,23 @@ func ReadError(reader *bufio.Reader, data *Data) error {
 	if err != nil {
 		return err
 	}
-	data.length = len(line) - 2 // Exclude CRLF
-	data.data = strings.TrimSpace(string(line))
+	data.Length = len(line) - 2 // Exclude CRLF
+	data.Data = strings.TrimSpace(string(line))
 	return nil
 }
 
 func ReadBulk(reader *bufio.Reader, data *Data) error {
-	length, err := readLength(reader)
+	length, err := ReadLength(reader)
 	if err != nil {
 		return err
 	}
-	data.length = length
+	data.Length = length
 
 	buf := make([]byte, length)
 	if _, err = io.ReadFull(reader, buf); err != nil {
 		return err
 	}
-	data.data = buf
+	data.Data = buf
 
 	// consume trailing CRLF
 	if _, err = reader.ReadByte(); err != nil {
@@ -96,20 +96,20 @@ func ReadBulk(reader *bufio.Reader, data *Data) error {
 }
 
 func ReadInteger(reader *bufio.Reader, data *Data) error {
-	value, err := readLength(reader)
+	value, err := ReadLength(reader)
 	if err != nil {
 		return err
 	}
-	data.data = value
+	data.Data = value
 	return nil
 }
 
 func ReadArray(reader *bufio.Reader, data *Data) error {
-	length, err := readLength(reader)
+	length, err := ReadLength(reader)
 	if err != nil {
 		return err
 	}
-	data.length = length
+	data.Length = length
 
 	arr := make([]any, length)
 	for i := range length {
@@ -119,6 +119,6 @@ func ReadArray(reader *bufio.Reader, data *Data) error {
 		}
 		arr[i] = item
 	}
-	data.data = arr
+	data.Data = arr
 	return nil
 }
