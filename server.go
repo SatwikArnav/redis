@@ -6,7 +6,9 @@ import (
 	"log"
 	"net"
 	"strings"
+
 	"github.com/SatwikArnav/redis/RESP"
+	"github.com/SatwikArnav/redis/persistence"
 )
 
 func TcpListener() {
@@ -16,16 +18,72 @@ func TcpListener() {
 	}
 	defer conn.Close()
 	fmt.Println("Server is listening on port 6379...")
+	aof, err := persistence.NewAOF("appendonly.aof")
+	if err != nil {
+		log.Fatalf("Error creating AOF: %v", err)
+	}
+	defer persistence.CloseAOF(aof)
+
+	fmt.Println("AOF file created successfully")
+
+	aof.Read(func(data RESP.Data) error {
+		var dataSlice []RESP.Data
+		switch v := data.Data.(type) {
+		case []RESP.Data:
+			dataSlice = v
+		case []interface{}:
+			for _, item := range v {
+				d, ok := item.(RESP.Data)
+				if !ok {
+					log.Println("item is not of type Data")
+					
+				}
+				dataSlice = append(dataSlice, d)
+			}
+		default:
+			log.Printf("data.data is not a []Data or []interface{}, but %T\n", data.Data)
+			
+		}
+		fmt.Printf("dataSlice: %+v\n", dataSlice)
+		fmt.Printf("dataSlice type: %T\n", dataSlice)
+		if len(dataSlice) == 0 || data.Length == 0 {
+			log.Printf("dataSlice is empty or data.length is 0. dataSlice: %+v\n", dataSlice)
+			
+		}
+		command := dataSlice[0]
+		args := dataSlice[1:]
+		fmt.Printf("Command: %+v\n", command)
+		fmt.Printf("Args: %+v\n", args)
+		var cmdStr string
+		switch v := command.Data.(type) {
+		case string:
+			cmdStr = v
+		case []byte:
+			cmdStr = string(v)
+		default:
+			log.Printf("command.data is not a string or []byte, but %T\n", command.Data)
+			
+		}
+		cmdStr = strings.ToUpper(cmdStr)
+		fn, ok := Handler[cmdStr]
+		if !ok {
+			log.Println("Unknown command:", cmdStr)
+			
+		}
+		fn(args)
+		return nil
+		})
 	for {
 		client, err := conn.Accept()
 		if err != nil {
 			log.Fatal(err)
 		}
-		go HandleClient(client)
+		go HandleClient(client,aof)
+
 	}
 }
 
-func HandleClient(client net.Conn) {
+func HandleClient(client net.Conn, aof *persistence.AOF) {
 	defer client.Close() // Uncomment this to properly close connections
 	fmt.Println("Client connected:", client.RemoteAddr())
 
@@ -93,6 +151,11 @@ func HandleClient(client net.Conn) {
 			continue
 		}
 		cmdStr = strings.ToUpper(cmdStr)
+		if cmdStr == "SET" || cmdStr == "HSET" {
+			fmt.Println("Command is SET or HSET, storing in AOF")
+			aof.Write(data)
+		}
+
 		fn, ok := Handler[cmdStr]
 		if !ok {
 			log.Println("Unknown command:", cmdStr)
@@ -113,3 +176,4 @@ func HandleClient(client net.Conn) {
 		fmt.Println("Response sent to client")
 	}
 }
+
